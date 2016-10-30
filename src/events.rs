@@ -1,26 +1,27 @@
 use sdl2_sys as sys;
 use std::mem;
 use libc::c_void;
+use init::InitGuard;
 
 
 pub struct EventContext {
-    _dummy: bool,
+    guard: InitGuard,
 }
 
 pub trait EventContextPrivate {
-    fn new() -> EventContext;
+    fn new(guard: InitGuard) -> EventContext;
 }
 
 impl EventContextPrivate for EventContext {
-    fn new() -> EventContext {
-        EventContext { _dummy: true }
+    fn new(guard: InitGuard) -> EventContext {
+        EventContext { guard: guard }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AudioDeviceKind {
     Output,
-    Capture(u8) // zero if an output device, non-zero if a capture device.
+    Capture(u8), // zero if an output device, non-zero if a capture device.
 }
 
 #[derive(Debug, Clone)]
@@ -31,29 +32,46 @@ pub enum EventKind {
     AppDidEnterForeground,
     AppTerminating,
     AppLowMemory,
-    AudioDeviceAdded { device_index: u32, device: AudioDeviceKind },
-    AudioDeviceRemoved { device_id: u32, device: AudioDeviceKind },
+
+    AudioDeviceAdded {
+        device_index: u32,
+        device: AudioDeviceKind,
+    },
+    AudioDeviceRemoved {
+        device_id: u32,
+        device: AudioDeviceKind,
+    },
+
     MouseButtonDown(MouseButtonEvent),
     MouseButtonUp(MouseButtonEvent),
     MouseMotion(MouseMotionEvent),
     MouseWheel(MouseWheelEvent),
+
     FingerDown(TouchFingerEvent),
     FingerUp(TouchFingerEvent),
-    FingerMotion(TouchFingerEvent),
+    FingerMotion {
+        event: TouchFingerEvent,
+        dx: f32,
+        dy: f32,
+    },
     DollarRecord(DollarGestureEvent),
     DollarGesture(DollarGestureEvent),
-    KeyDown(KeyboardEvent),
-    KeyUp(KeyboardEvent),
+    MultiGesture(MultiGestureEvent),
+
+    KeyDown(Keysym),
+    KeyRepeat(Keysym),
+    KeyUp(Keysym),
     KeymapChanged,
     TextEditing(TextEditingEvent),
     TextInput(String),
-    /* The joystick device index for the ADDED event, instance id for the REMOVED or REMAPPED event */
-    ControllerDeviceAdded { device_index: i32},
-    ControllerDeviceRemoved { instance_id: i32},
-    ControllerDeviceRemapped { instance_id: i32},
+
+    ControllerDeviceAdded { device_index: i32 },
+    ControllerDeviceRemoved { instance_id: i32 },
+    ControllerDeviceRemapped { instance_id: i32 },
     ControllerButtonDown(ControllerButtonEvent),
     ControllerButtonUp(ControllerButtonEvent),
     ControllerAxisMotion(ControllerAxisEvent),
+
     JoyDeviceAdded { device_index: i32 },
     JoyDeviceRemoved { instance_id: i32 },
     JoyButtonDown(JoyButtonEvent),
@@ -61,28 +79,41 @@ pub enum EventKind {
     JoyBallMotion(JoyBallEvent),
     JoyHatMotion(JoyHatEvent),
     JoyAxisMotion(JoyAxisEvent),
+
     Window(WindowEvent),
     // SysWmEvent(SysWmEventData), // Disabled by default
     DropFile(String),
+
+    ClipboardUpdate,
     RenderDeviceReset,
     RenderTargetsReset,
-    User(UserEvent),
-    ClipboardUpdate,
     Quit,
+
+    User(UserEvent),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct AudioDeviceEvent {
-    which: u32, /* The audio device index for the ADDED event (valid until next SDL_GetNumAudioDevices() call), SDL_AudioDeviceID for the REMOVED event */
-    iscapture: Option<u8>, // zero if an output device, non-zero if a capture device.
+pub enum MouseKind {
+    Mouse(u32),
+    Touch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MouseButton {
+    Whatever,
+}
+
+impl MouseButton {
+    pub fn from_raw(button: u8) -> Option<MouseButton> {
+        Some(MouseButton::Whatever)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MouseButtonEvent {
-    pub window_id: u32, // The window with mouse focus, if any
-    pub which: u32, // The mouse instance id, or SDL_TOUCH_MOUSEID
-    pub button: u8, // The mouse button index
-    pub pressed: bool, // ::SDL_PRESSED or ::SDL_RELEASED
+    // pub window_id: u32, // The window with mouse focus, if any
+    pub which: MouseKind, // The mouse instance id, or SDL_TOUCH_MOUSEID
+    pub button: MouseButton, // The mouse button index
     pub clicks: u8, // 1 for single-click, 2 for double-click, etc.
     pub x: i32, // X coordinate, relative to window
     pub y: i32, // Y coordinate, relative to window
@@ -90,9 +121,9 @@ pub struct MouseButtonEvent {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MouseMotionEvent {
-    pub window_id: u32, // The window with mouse focus, if any
-    pub which: u32, // The mouse instance id, or SDL_TOUCH_MOUSEID
-    pub state: u32, // The current button state
+    // pub window_id: u32, // The window with mouse focus, if any
+    pub which: MouseKind, // The mouse instance id, or SDL_TOUCH_MOUSEID
+    pub held_buttons_flags: u32, // The current button state
     pub x: i32, // X coordinate, relative to window
     pub y: i32, // Y coordinate, relative to window
     pub xrel: i32, // The relative motion in the X direction
@@ -101,8 +132,8 @@ pub struct MouseMotionEvent {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MouseWheelEvent {
-    pub window_id: u32, // The window with mouse focus, if any
-    pub which: u32, // The mouse instance id, or SDL_TOUCH_MOUSEID
+    // pub window_id: u32, // The window with mouse focus, if any
+    pub which: MouseKind, // The mouse instance id, or SDL_TOUCH_MOUSEID
     pub x: i32, // The amount scrolled horizontally, positive to the right and negative to the left
     pub y: i32, /* The amount scrolled vertically, positive away from the user and negative toward the user */
     pub direction: u32, /* Set to one of the SDL_MOUSEWHEEL_* defines. When FLIPPED the values in X and Y will be opposite. Multiply by -1 to change them back */
@@ -110,31 +141,31 @@ pub struct MouseWheelEvent {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TouchFingerEvent {
-    touchId: sys::SDL_TouchID, // The touch device id
-    fingerId: sys::SDL_FingerID,
-    x: f32, // Normalized in the range 0...1
-    y: f32, // Normalized in the range 0...1
-    dx: f32, // Normalized in the range -1...1
-    dy: f32, // Normalized in the range -1...1
-    pressure: f32, // Normalized in the range 0...1
+    pub touch_id: i64, // The touch device id
+    pub finger_id: i64,
+    pub x: f32, // Normalized in the range 0...1
+    pub y: f32, // Normalized in the range 0...1
+    pub pressure: f32, // Normalized in the range 0...1
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DollarGestureEvent {
-    touchId: sys::SDL_TouchID, // The touch device id
-    gestureId: sys::SDL_GestureID,
-    numFingers: u32,
-    error: f32,
-    x: f32, // Normalized center of gesture
-    y: f32, // Normalized center of gesture
+    pub touch_id: i64, // The touch device id
+    pub gesture_id: i64,
+    pub num_fingers: u32,
+    pub error: f32,
+    pub x: f32, // Normalized center of gesture
+    pub y: f32, // Normalized center of gesture
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct WindowEvent {
-    pub window_id: u32, // The associated window
-    pub event: u8, // ::SDL_WindowEventID
-    pub data1: i32, // event dependent data
-    pub data2: i32, // event dependent data
+pub struct MultiGestureEvent {
+    pub touch_id: i64, // The touch device index
+    pub d_theta: f32,
+    pub d_dist: f32,
+    pub x: f32,
+    pub y: f32,
+    pub num_fingers: u16,
 }
 
 // typedef struct SDL_Keysym
@@ -147,10 +178,26 @@ pub struct WindowEvent {
 //
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Scancode {}
+pub enum Scancode {
+    Whatever,
+}
+
+impl Scancode {
+    pub fn from_raw(button: u8) -> Option<Scancode> {
+        Some(Scancode::Whatever)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Keycode {}
+pub enum Keycode {
+    Whatever,
+}
+
+impl Keycode {
+    pub fn from_raw(button: u8) -> Option<Keycode> {
+        Some(Keycode::Whatever)
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Keysym {
@@ -161,15 +208,13 @@ pub struct Keysym {
 
 #[derive(Debug, Clone, Copy)]
 pub struct KeyboardEvent {
-    pub window_id: u32, // The window with keyboard focus, if any
-    pub pressed: bool, // ::SDL_PRESSED or ::SDL_RELEASED
-    pub repeat: bool, // Non-zero if this is a key repeat
+    // pub window_id: u32, // The window with keyboard focus, if any
     pub keysym: Keysym, // The key that was pressed or released
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEditingEvent {
-    pub window_id: u32, // The window with keyboard focus, if any
+    // pub window_id: u32, // The window with keyboard focus, if any
     pub text: String, // The editing text
     pub start: u8, // The start cursor of selected editing text
     pub length: u8, // The length of selected editing text
@@ -209,19 +254,27 @@ pub struct JoyHatEvent {
     pub which: i32, // The joystick instance id
     pub hat: u8, // The joystick hat index
     pub value: u8, /* The hat position value.
-                *   \sa ::SDL_HAT_LEFTUP ::SDL_HAT_UP ::SDL_HAT_RIGHTUP
-                *   \sa ::SDL_HAT_LEFT ::SDL_HAT_CENTERED ::SDL_HAT_RIGHT
-                *   \sa ::SDL_HAT_LEFTDOWN ::SDL_HAT_DOWN ::SDL_HAT_RIGHTDOWN
-                *
-                *   Note that zero means the POV is centered.
-                * */
+                    *   \sa ::SDL_HAT_LEFTUP ::SDL_HAT_UP ::SDL_HAT_RIGHTUP
+                    *   \sa ::SDL_HAT_LEFT ::SDL_HAT_CENTERED ::SDL_HAT_RIGHT
+                    *   \sa ::SDL_HAT_LEFTDOWN ::SDL_HAT_DOWN ::SDL_HAT_RIGHTDOWN
+                    *
+                    *   Note that zero means the POV is centered.
+                    * */
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct JoyButtonEvent {
     pub which: i32, // The joystick instance id
     pub button: u8, // The joystick button index
-    pub pressed: bool, // ::SDL_PRESSED or ::SDL_RELEASED
+}
+
+// TODO: Wrap properly
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WindowEvent {
+    // pub window_id: u32, // The associated window
+    pub event: u8, // ::SDL_WindowEventID
+    pub data1: i32, // event dependent data
+    pub data2: i32, // event dependent data
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -257,35 +310,139 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
         sys::SDL_APP_LOWMEMORY => AppLowMemory,
         sys::SDL_AUDIODEVICEADDED => {
             let raw = *event.adevice();
-            AudioDeviceAdded{
+            AudioDeviceAdded {
                 device_index: raw.which,
                 device: if raw.iscapture == 0 {
                     AudioDeviceKind::Output
                 } else {
                     AudioDeviceKind::Capture(raw.iscapture)
-                }
+                },
             }
-        },
+        }
         sys::SDL_AUDIODEVICEREMOVED => {
             let raw = *event.adevice();
-            AudioDeviceRemoved{
+            AudioDeviceRemoved {
                 device_id: raw.which,
                 device: if raw.iscapture == 0 {
                     AudioDeviceKind::Output
                 } else {
                     AudioDeviceKind::Capture(raw.iscapture)
-                }
+                },
             }
-        },
-        sys::SDL_MOUSEBUTTONDOWN => MouseButtonDown {},
-        sys::SDL_MOUSEBUTTONUP => MouseButtonUp {},
-        sys::SDL_MOUSEMOTION => MouseMotion {},
-        sys::SDL_MOUSEWHEEL => MouseWheel {},
-        sys::SDL_FINGERDOWN => FingerDown {},
-        sys::SDL_FINGERUP => FingerUp {},
-        sys::SDL_FINGERMOTION => FingerMotion {},
-        sys::SDL_MULTIGESTURE => MultiGesture {},
-        sys::SDL_DOLLARRECORD => DollarRecord {},
+        }
+        sys::SDL_MOUSEBUTTONDOWN => {
+            let raw = *event.button();
+            MouseButtonDown(MouseButtonEvent {
+                which: if raw.which == sys::SDL_TOUCH_MOUSEID {
+                    MouseKind::Touch
+                } else {
+                    MouseKind::Mouse(raw.which)
+                },
+                button: MouseButton::from_raw(raw.button).expect("Invalid mouse button"),
+                clicks: raw.clicks,
+                x: raw.x,
+                y: raw.y,
+            })
+        }
+        sys::SDL_MOUSEBUTTONUP => {
+            let raw = *event.button();
+            MouseButtonUp(MouseButtonEvent {
+                which: if raw.which == sys::SDL_TOUCH_MOUSEID {
+                    MouseKind::Touch
+                } else {
+                    MouseKind::Mouse(raw.which)
+                },
+                button: MouseButton::from_raw(raw.button).expect("Invalid mouse button"),
+                clicks: raw.clicks,
+                x: raw.x,
+                y: raw.y,
+            })
+        }
+        sys::SDL_MOUSEMOTION => {
+            let raw = *event.motion();
+            MouseMotion(MouseMotionEvent {
+                which: if raw.which == sys::SDL_TOUCH_MOUSEID {
+                    MouseKind::Touch
+                } else {
+                    MouseKind::Mouse(raw.which)
+                },
+                held_buttons_flags: raw.state,
+                x: raw.x,
+                y: raw.y,
+                xrel: raw.xrel,
+                yrel: raw.yrel,
+            })
+        }
+        sys::SDL_MOUSEWHEEL => {
+            let raw = *event.wheel();
+            MouseWheel(MouseWheelEvent {
+                which: if raw.which == sys::SDL_TOUCH_MOUSEID {
+                    MouseKind::Touch
+                } else {
+                    MouseKind::Mouse(raw.which)
+                },
+                x: raw.x,
+                y: raw.y,
+                direction: raw.direction,
+            })
+        }
+        sys::SDL_FINGERDOWN => {
+            let raw = *event.tfinger();
+            FingerDown(TouchFingerEvent {
+                touch_id: raw.touchId,
+                finger_id: raw.fingerId,
+                x: raw.x,
+                y: raw.y,
+                pressure: raw.pressure,
+            })
+        }
+        sys::SDL_FINGERUP => {
+            let raw = *event.tfinger();
+            FingerUp(TouchFingerEvent {
+                touch_id: raw.touchId,
+                finger_id: raw.fingerId,
+                x: raw.x,
+                y: raw.y,
+
+                pressure: raw.pressure,
+            })
+        }
+        sys::SDL_FINGERMOTION => {
+            let raw = *event.tfinger();
+            FingerMotion {
+                dx: raw.dx,
+                dy: raw.dy,
+                event: TouchFingerEvent {
+                    touch_id: raw.touchId,
+                    finger_id: raw.fingerId,
+                    x: raw.x,
+                    y: raw.y,
+                    pressure: raw.pressure,
+                },
+            }
+        }
+        sys::SDL_MULTIGESTURE => {
+            let raw = *event.mgesture();
+            MultiGesture(MultiGestureEvent {
+                touch_id: raw.touchId,
+                d_theta: raw.dTheta,
+                d_dist: raw.dDist,
+                x: raw.x,
+                y: raw.y,
+                num_fingers: raw.numFingers,
+            })
+        }
+        sys::SDL_DOLLARRECORD => {
+            let raw = *event.dgesture();
+            DollarRecord(DollarGestureEvent {
+                touch_id: raw.touchId,
+                gesture_id: raw.gestureId,
+                num_fingers: raw.numFingers,
+                error: raw.error,
+                x: raw.x,
+                y: raw.y,
+            })
+        }
         sys::SDL_KEYDOWN => KeyDown {},
         sys::SDL_KEYUP => KeyUp {},
         sys::SDL_KEYMAPCHANGED => KeyMapChanged {},
@@ -307,11 +464,11 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
         sys::SDL_WINDOWEVENT => MouseButtonDown {},
         sys::SDL_SYSWMEVENT => MouseButtonDown {},
         sys::SDL_DROPFILE => MouseButtonDown {},
-        sys::SDL_RENDER_DEVICE_RESET => MouseButtonDown {},
-        sys::SDL_RENDER_TARGETS_RESET => MouseButtonDown {},
-        sys::SDL_CLIPBOARDUPDATE => MouseButtonDown {},
-        sys::SDL_QUIT => MouseButtonDown {},
-        sys::SDL_USEREVENT ... sys::SDL_LASTEVENT => MouseButtonDown {},
+        sys::SDL_RENDER_DEVICE_RESET => RenderDeviceReset,
+        sys::SDL_RENDER_TARGETS_RESET => RenderTargetsReset,
+        sys::SDL_CLIPBOARDUPDATE => ClipboardUpdate,
+        sys::SDL_QUIT => Quit,
+        sys::SDL_USEREVENT...sys::SDL_LASTEVENT => MouseButtonDown {},
         sys::SDL_LASTEVENT => unreachable!(),
         _ => {
             unreachable!();
@@ -320,9 +477,8 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
     Event {
         kind: kind,
         timestamp: timestamp,
-        window_id, window_id,
+        window_id: window_id,
     }
-    unimplemented!();
 }
 
 impl EventContext {
