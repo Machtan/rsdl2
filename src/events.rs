@@ -304,7 +304,6 @@ pub struct WindowEvent {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct UserEvent {
     pub kind: u32, // ::SDL_USEREVENT through ::SDL_LASTEVENT-1
-    pub windowID: u32, // The associated window if any
     pub code: i32, // User defined event code
     pub data1: *mut c_void, // User defined data pointer
     pub data2: *mut c_void, // User defined data pointer
@@ -317,7 +316,7 @@ pub struct Event {
     pub window_id: Option<u32>,
 }
 
-fn wrap_event(event: sys::SDL_Event) -> Event {
+unsafe fn wrap_event(mut event: sys::SDL_Event) -> Event {
     use self::EventKind::*;
     let mut window_id = None;
     let (type_, timestamp) = {
@@ -490,7 +489,7 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
         sys::SDL_TEXTEDITING => {
             let raw = *event.edit();
             window_id = Some(raw.windowID);
-            let cstr = CStr::from_ptr(&raw.text[0]);
+            let cstr = CStr::from_ptr(raw.text.as_ptr());
             let text = cstr.to_str().expect("SDL returned invalid UTF-8").to_owned();
             TextEditing(TextEditingEvent {
                 text: text,
@@ -501,7 +500,7 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
         sys::SDL_TEXTINPUT => {
             let raw = *event.text();
             window_id = Some(raw.windowID);
-            let cstr = CStr::from_ptr(&raw.text[0]);
+            let cstr = CStr::from_ptr(raw.text.as_ptr());
             let text = cstr.to_str().expect("SDL returned invalid UTF-8").to_owned();
             TextInput(text)
         }
@@ -596,16 +595,47 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
                 },
             }
         }
-        sys::SDL_JOYAXISMOTION => MouseButtonDown {},
-        sys::SDL_WINDOWEVENT => MouseButtonDown {},
-        sys::SDL_SYSWMEVENT => MouseButtonDown {},
-        sys::SDL_DROPFILE => MouseButtonDown {},
+        sys::SDL_JOYAXISMOTION => {
+            let raw = *event.jaxis();
+            Joy {
+                instance_id: raw.which,
+                event: JoyEvent::AxisMotion(JoyAxis::from_raw(raw.axis).expect("Invalid axis"),
+                                            raw.value),
+            }
+        }
+        sys::SDL_WINDOWEVENT => {
+            let raw = *event.window();
+            window_id = Some(raw.windowID);
+            Window(WindowEvent {
+                event: raw.event,
+                data1: raw.data1,
+                data2: raw.data2,
+            })
+        }
+        sys::SDL_SYSWMEVENT => unimplemented!(), // Disabled by default
+        sys::SDL_DROPFILE => {
+            let raw = &*event.drop();
+            let cstr = CStr::from_ptr(raw.file);
+            let text = cstr.to_str().expect("SDL returned invalid UTF-8").to_owned();
+            sys::SDL_free(raw.file as *mut c_void);
+            DropFile(text)
+        }
         sys::SDL_RENDER_DEVICE_RESET => RenderDeviceReset,
         sys::SDL_RENDER_TARGETS_RESET => RenderTargetsReset,
         sys::SDL_CLIPBOARDUPDATE => ClipboardUpdate,
         sys::SDL_QUIT => Quit,
-        sys::SDL_USEREVENT...sys::SDL_LASTEVENT => MouseButtonDown {},
-        sys::SDL_LASTEVENT => unreachable!(),
+        sys::SDL_USEREVENT...sys::SDL_LASTEVENT => {
+            let raw = &*event.user();
+            // TODO: There might be a window Id available here?
+            // window_id = Some(raw.windowID);
+            User(UserEvent {
+                kind: raw.type_,
+                code: raw.code,
+                data1: raw.data1,
+                data2: raw.data2,
+            })
+        }
+        // sys::SDL_LASTEVENT => unreachable!(),
         _ => {
             unreachable!();
         }
@@ -622,7 +652,7 @@ impl EventContext {
         let mut raw: sys::SDL_Event = unsafe { mem::uninitialized() };
         let res = unsafe { sys::SDL_PollEvent(&mut raw) };
         if res != 0 {
-            Some(wrap_event(raw))
+            Some(unsafe { wrap_event(raw) })
         } else {
             None
         }

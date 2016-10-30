@@ -120,7 +120,7 @@ impl Context {
 
     pub fn events(&self) -> Option<EventContext> {
         if self.has_events() {
-            Some(EventContext::new())
+            Some(EventContext::new(self.guard()))
         } else {
             None
         }
