@@ -2,7 +2,7 @@ use sdl2_sys as sys;
 use std::mem;
 use libc::c_void;
 use init::InitGuard;
-
+use std::ffi::CStr;
 
 pub struct EventContext {
     guard: InitGuard,
@@ -66,19 +66,13 @@ pub enum EventKind {
     TextInput(String),
 
     ControllerDeviceAdded { device_index: i32 },
-    ControllerDeviceRemoved { instance_id: i32 },
-    ControllerDeviceRemapped { instance_id: i32 },
-    ControllerButtonDown(ControllerButtonEvent),
-    ControllerButtonUp(ControllerButtonEvent),
-    ControllerAxisMotion(ControllerAxisEvent),
+    Controller {
+        instance_id: i32,
+        event: ControllerEvent,
+    },
 
     JoyDeviceAdded { device_index: i32 },
-    JoyDeviceRemoved { instance_id: i32 },
-    JoyButtonDown(JoyButtonEvent),
-    JoyButtonUp(JoyButtonEvent),
-    JoyBallMotion(JoyBallEvent),
-    JoyHatMotion(JoyHatEvent),
-    JoyAxisMotion(JoyAxisEvent),
+    Joy { instance_id: i32, event: JoyEvent },
 
     Window(WindowEvent),
     // SysWmEvent(SysWmEventData), // Disabled by default
@@ -183,7 +177,7 @@ pub enum Scancode {
 }
 
 impl Scancode {
-    pub fn from_raw(button: u8) -> Option<Scancode> {
+    pub fn from_raw(button: sys::SDL_Scancode) -> Option<Scancode> {
         Some(Scancode::Whatever)
     }
 }
@@ -194,7 +188,7 @@ pub enum Keycode {
 }
 
 impl Keycode {
-    pub fn from_raw(button: u8) -> Option<Keycode> {
+    pub fn from_raw(button: sys::SDL_Keycode) -> Option<Keycode> {
         Some(Keycode::Whatever)
     }
 }
@@ -206,66 +200,96 @@ pub struct Keysym {
     pub modifiers: u16,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct KeyboardEvent {
-    // pub window_id: u32, // The window with keyboard focus, if any
-    pub keysym: Keysym, // The key that was pressed or released
+impl Keysym {
+    fn from_raw(raw: sys::SDL_Keysym) -> Keysym {
+        Keysym {
+            scancode: Scancode::from_raw(raw.scancode).expect("Invalid scancode"),
+            keycode: Keycode::from_raw(raw.sym).expect("Invalid keycode"),
+            modifiers: raw._mod,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEditingEvent {
     // pub window_id: u32, // The window with keyboard focus, if any
     pub text: String, // The editing text
-    pub start: u8, // The start cursor of selected editing text
-    pub length: u8, // The length of selected editing text
+    pub start: usize, // The start cursor of selected editing text
+    pub length: usize, // The length of selected editing text
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ControllerButtonEvent {
-    pub which: i32, // The joystick instance id
-    pub button: u8, // The controller button (SDL_GameControllerButton)
-    pub pressed: bool, // ::SDL_PRESSED or ::SDL_RELEASED
+pub enum ControllerButton {
+    Whatever,
+}
+
+impl ControllerButton {
+    pub fn from_raw(raw: u8) -> Option<ControllerButton> {
+        Some(ControllerButton::Whatever)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ControllerAxisEvent {
-    pub which: i32, // The joystick instance id
-    pub axis: u8, // The controller axis (SDL_GameControllerAxis)
-    pub value: i16, // The axis value (range: -32768 to 32767)
+pub enum ControllerAxis {
+    Whatever,
+}
+
+impl ControllerAxis {
+    pub fn from_raw(raw: u8) -> Option<ControllerAxis> {
+        Some(ControllerAxis::Whatever)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct JoyAxisEvent {
-    pub which: i32, // The joystick instance id
-    pub axis: u8, // The joystick axis index
-    pub value: i16, // The axis value (range: -32768 to 32767)
+pub enum ControllerEvent {
+    ButtonDown(ControllerButton),
+    ButtonUp(ControllerButton),
+    AxisMotion(ControllerAxis, i16),
+    Removed,
+    Remapped,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct JoyBallEvent {
-    pub which: i32, // The joystick instance id
-    pub ball: u8, // The joystick trackball index
-    pub xrel: i16, // The relative motion in the X direction
-    pub yrel: i16, // The relative motion in the Y direction
+pub enum JoyButton {
+    Whatever,
+}
+
+impl JoyButton {
+    pub fn from_raw(raw: u8) -> Option<JoyButton> {
+        Some(JoyButton::Whatever)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct JoyHatEvent {
-    pub which: i32, // The joystick instance id
-    pub hat: u8, // The joystick hat index
-    pub value: u8, /* The hat position value.
-                    *   \sa ::SDL_HAT_LEFTUP ::SDL_HAT_UP ::SDL_HAT_RIGHTUP
-                    *   \sa ::SDL_HAT_LEFT ::SDL_HAT_CENTERED ::SDL_HAT_RIGHT
-                    *   \sa ::SDL_HAT_LEFTDOWN ::SDL_HAT_DOWN ::SDL_HAT_RIGHTDOWN
-                    *
-                    *   Note that zero means the POV is centered.
-                    * */
+pub enum JoyAxis {
+    Whatever,
+}
+
+impl JoyAxis {
+    pub fn from_raw(raw: u8) -> Option<JoyAxis> {
+        Some(JoyAxis::Whatever)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct JoyButtonEvent {
-    pub which: i32, // The joystick instance id
-    pub button: u8, // The joystick button index
+pub enum JoyHatPosition {
+    Whatever,
+}
+
+impl JoyHatPosition {
+    pub fn from_raw(raw: u8) -> Option<JoyHatPosition> {
+        Some(JoyHatPosition::Whatever)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum JoyEvent {
+    ButtonDown(JoyButton),
+    ButtonUp(JoyButton),
+    BallMotion { ball: u8, xrel: i16, yrel: i16 },
+    HatMotion { hat: u8, pos: JoyHatPosition },
+    AxisMotion(JoyAxis, i16),
+    Removed,
 }
 
 // TODO: Wrap properly
@@ -332,6 +356,7 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
         }
         sys::SDL_MOUSEBUTTONDOWN => {
             let raw = *event.button();
+            window_id = Some(raw.windowID);
             MouseButtonDown(MouseButtonEvent {
                 which: if raw.which == sys::SDL_TOUCH_MOUSEID {
                     MouseKind::Touch
@@ -346,6 +371,7 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
         }
         sys::SDL_MOUSEBUTTONUP => {
             let raw = *event.button();
+            window_id = Some(raw.windowID);
             MouseButtonUp(MouseButtonEvent {
                 which: if raw.which == sys::SDL_TOUCH_MOUSEID {
                     MouseKind::Touch
@@ -360,6 +386,7 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
         }
         sys::SDL_MOUSEMOTION => {
             let raw = *event.motion();
+            window_id = Some(raw.windowID);
             MouseMotion(MouseMotionEvent {
                 which: if raw.which == sys::SDL_TOUCH_MOUSEID {
                     MouseKind::Touch
@@ -375,6 +402,7 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
         }
         sys::SDL_MOUSEWHEEL => {
             let raw = *event.wheel();
+            window_id = Some(raw.windowID);
             MouseWheel(MouseWheelEvent {
                 which: if raw.which == sys::SDL_TOUCH_MOUSEID {
                     MouseKind::Touch
@@ -443,23 +471,131 @@ fn wrap_event(event: sys::SDL_Event) -> Event {
                 y: raw.y,
             })
         }
-        sys::SDL_KEYDOWN => KeyDown {},
-        sys::SDL_KEYUP => KeyUp {},
-        sys::SDL_KEYMAPCHANGED => KeyMapChanged {},
-        sys::SDL_TEXTEDITING => TextEditing {},
-        sys::SDL_TEXTINPUT => TextInput {},
-        sys::SDL_CONTROLLERDEVICEADDED => ControllerDeviceAdded {},
-        sys::SDL_CONTROLLERDEVICEREMOVED => ControllerDeviceRemoved {},
-        sys::SDL_CONTROLLERDEVICEREMAPPED => ControllerDeviceRemapped {},
-        sys::SDL_CONTROLLERBUTTONDOWN => ControllerButtonDown {},
-        sys::SDL_CONTROLLERBUTTONUP => ControllerButtonUp {},
-        sys::SDL_CONTROLLERAXISMOTION => ControllerAxisMotion {},
-        sys::SDL_JOYDEVICEADDED => MouseButtonDown {},
-        sys::SDL_JOYDEVICEREMOVED => MouseButtonDown {},
-        sys::SDL_JOYBUTTONDOWN => MouseButtonDown {},
-        sys::SDL_JOYBUTTONUP => MouseButtonDown {},
-        sys::SDL_JOYBALLMOTION => MouseButtonDown {},
-        sys::SDL_JOYHATMOTION => MouseButtonDown {},
+        sys::SDL_KEYDOWN => {
+            let raw = *event.key();
+            window_id = Some(raw.windowID);
+            let keysym = Keysym::from_raw(raw.keysym);
+            if raw.repeat != 0 {
+                KeyRepeat(keysym)
+            } else {
+                KeyDown(keysym)
+            }
+        }
+        sys::SDL_KEYUP => {
+            let raw = *event.key();
+            window_id = Some(raw.windowID);
+            KeyUp(Keysym::from_raw(raw.keysym))
+        }
+        sys::SDL_KEYMAPCHANGED => KeymapChanged,
+        sys::SDL_TEXTEDITING => {
+            let raw = *event.edit();
+            window_id = Some(raw.windowID);
+            let cstr = CStr::from_ptr(&raw.text[0]);
+            let text = cstr.to_str().expect("SDL returned invalid UTF-8").to_owned();
+            TextEditing(TextEditingEvent {
+                text: text,
+                start: raw.start as usize,
+                length: raw.length as usize,
+            })
+        }
+        sys::SDL_TEXTINPUT => {
+            let raw = *event.text();
+            window_id = Some(raw.windowID);
+            let cstr = CStr::from_ptr(&raw.text[0]);
+            let text = cstr.to_str().expect("SDL returned invalid UTF-8").to_owned();
+            TextInput(text)
+        }
+        sys::SDL_CONTROLLERDEVICEADDED => {
+            let raw = *event.cdevice();
+            ControllerDeviceAdded { device_index: raw.which }
+        }
+        sys::SDL_CONTROLLERDEVICEREMOVED => {
+            let raw = *event.cdevice();
+            Controller {
+                instance_id: raw.which,
+                event: ControllerEvent::Removed,
+            }
+        }
+        sys::SDL_CONTROLLERDEVICEREMAPPED => {
+            let raw = *event.cdevice();
+            Controller {
+                instance_id: raw.which,
+                event: ControllerEvent::Remapped,
+            }
+        }
+        sys::SDL_CONTROLLERBUTTONDOWN => {
+            let raw = *event.cbutton();
+            Controller {
+                instance_id: raw.which,
+                event: ControllerEvent::ButtonDown(ControllerButton::from_raw(raw.button)
+                    .expect("Invalid controller button")),
+            }
+        }
+        sys::SDL_CONTROLLERBUTTONUP => {
+            let raw = *event.cbutton();
+            Controller {
+                instance_id: raw.which,
+                event: ControllerEvent::ButtonUp(ControllerButton::from_raw(raw.button)
+                    .expect("Invalid controller button")),
+            }
+        }
+        sys::SDL_CONTROLLERAXISMOTION => {
+            let raw = *event.caxis();
+            Controller {
+                instance_id: raw.which,
+                event: ControllerEvent::AxisMotion(ControllerAxis::from_raw(raw.axis)
+                                                       .expect("Invalid controller axis"),
+                                                   raw.value),
+            }
+        }
+        sys::SDL_JOYDEVICEADDED => {
+            let raw = *event.jdevice();
+            JoyDeviceAdded { device_index: raw.which }
+        }
+        sys::SDL_JOYDEVICEREMOVED => {
+            let raw = *event.jdevice();
+            Joy {
+                instance_id: raw.which,
+                event: JoyEvent::Removed,
+            }
+        }
+        sys::SDL_JOYBUTTONDOWN => {
+            let raw = *event.jbutton();
+            Joy {
+                instance_id: raw.which,
+                event: JoyEvent::ButtonDown(JoyButton::from_raw(raw.button)
+                    .expect("Invalid joystick button")),
+            }
+        }
+        sys::SDL_JOYBUTTONUP => {
+            let raw = *event.jbutton();
+            Joy {
+                instance_id: raw.which,
+                event: JoyEvent::ButtonUp(JoyButton::from_raw(raw.button)
+                    .expect("Invalid joystick button")),
+            }
+        }
+        sys::SDL_JOYBALLMOTION => {
+            let raw = *event.jball();
+            Joy {
+                instance_id: raw.which,
+                event: JoyEvent::BallMotion {
+                    ball: raw.ball,
+                    xrel: raw.xrel,
+                    yrel: raw.yrel,
+                },
+            }
+        }
+        sys::SDL_JOYHATMOTION => {
+            let raw = *event.jhat();
+            Joy {
+                instance_id: raw.which,
+                event: JoyEvent::HatMotion {
+                    hat: raw.hat,
+                    pos: JoyHatPosition::from_raw(raw.value).expect("Invalid hat position"),
+                },
+            }
+        }
         sys::SDL_JOYAXISMOTION => MouseButtonDown {},
         sys::SDL_WINDOWEVENT => MouseButtonDown {},
         sys::SDL_SYSWMEVENT => MouseButtonDown {},
