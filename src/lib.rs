@@ -3,7 +3,7 @@ extern crate libc;
 
 mod common;
 mod init;
-mod events;
+pub mod events;
 
 pub use init::{init, InitBuilder, Context};
 pub use common::{Error, Result, get_error};

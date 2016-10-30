@@ -4,18 +4,14 @@ use libc::c_void;
 use init::InitGuard;
 use std::ffi::CStr;
 
-pub struct EventContext {
-    guard: InitGuard,
-}
-
-pub trait EventContextPrivate {
-    fn new(guard: InitGuard) -> EventContext;
-}
-
-impl EventContextPrivate for EventContext {
-    fn new(guard: InitGuard) -> EventContext {
-        EventContext { guard: guard }
-    }
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AppEvent {
+    WillEnterBackground,
+    DidEnterBackground,
+    WillEnterForeground,
+    DidEnterForeground,
+    Terminating,
+    LowMemory,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -26,12 +22,7 @@ pub enum AudioDeviceKind {
 
 #[derive(Debug, Clone)]
 pub enum EventKind {
-    AppWillEnterBackground,
-    AppDidEnterBackground,
-    AppWillEnterForeground,
-    AppDidEnterForeground,
-    AppTerminating,
-    AppLowMemory,
+    App(AppEvent),
 
     AudioDeviceAdded {
         device_index: u32,
@@ -98,7 +89,7 @@ pub enum MouseButton {
 }
 
 impl MouseButton {
-    pub fn from_raw(button: u8) -> Option<MouseButton> {
+    pub fn from_raw(_button: u8) -> Option<MouseButton> {
         Some(MouseButton::Whatever)
     }
 }
@@ -177,7 +168,7 @@ pub enum Scancode {
 }
 
 impl Scancode {
-    pub fn from_raw(button: sys::SDL_Scancode) -> Option<Scancode> {
+    pub fn from_raw(_button: sys::SDL_Scancode) -> Option<Scancode> {
         Some(Scancode::Whatever)
     }
 }
@@ -188,7 +179,7 @@ pub enum Keycode {
 }
 
 impl Keycode {
-    pub fn from_raw(button: sys::SDL_Keycode) -> Option<Keycode> {
+    pub fn from_raw(_button: sys::SDL_Keycode) -> Option<Keycode> {
         Some(Keycode::Whatever)
     }
 }
@@ -224,7 +215,7 @@ pub enum ControllerButton {
 }
 
 impl ControllerButton {
-    pub fn from_raw(raw: u8) -> Option<ControllerButton> {
+    pub fn from_raw(_raw: u8) -> Option<ControllerButton> {
         Some(ControllerButton::Whatever)
     }
 }
@@ -235,7 +226,7 @@ pub enum ControllerAxis {
 }
 
 impl ControllerAxis {
-    pub fn from_raw(raw: u8) -> Option<ControllerAxis> {
+    pub fn from_raw(_raw: u8) -> Option<ControllerAxis> {
         Some(ControllerAxis::Whatever)
     }
 }
@@ -255,7 +246,7 @@ pub enum JoyButton {
 }
 
 impl JoyButton {
-    pub fn from_raw(raw: u8) -> Option<JoyButton> {
+    pub fn from_raw(_raw: u8) -> Option<JoyButton> {
         Some(JoyButton::Whatever)
     }
 }
@@ -266,7 +257,7 @@ pub enum JoyAxis {
 }
 
 impl JoyAxis {
-    pub fn from_raw(raw: u8) -> Option<JoyAxis> {
+    pub fn from_raw(_raw: u8) -> Option<JoyAxis> {
         Some(JoyAxis::Whatever)
     }
 }
@@ -277,7 +268,7 @@ pub enum JoyHatPosition {
 }
 
 impl JoyHatPosition {
-    pub fn from_raw(raw: u8) -> Option<JoyHatPosition> {
+    pub fn from_raw(_raw: u8) -> Option<JoyHatPosition> {
         Some(JoyHatPosition::Whatever)
     }
 }
@@ -325,12 +316,12 @@ unsafe fn wrap_event(mut event: sys::SDL_Event) -> Event {
     };
     let kind = match type_ {
         sys::SDL_FIRSTEVENT => unreachable!(),
-        sys::SDL_APP_WILLENTERBACKGROUND => AppWillEnterBackground,
-        sys::SDL_APP_DIDENTERBACKGROUND => AppDidEnterBackground,
-        sys::SDL_APP_WILLENTERFOREGROUND => AppWillEnterForeground,
-        sys::SDL_APP_DIDENTERFOREGROUND => AppDidEnterForeground,
-        sys::SDL_APP_TERMINATING => AppTerminating,
-        sys::SDL_APP_LOWMEMORY => AppLowMemory,
+        sys::SDL_APP_WILLENTERBACKGROUND => App(AppEvent::WillEnterBackground),
+        sys::SDL_APP_DIDENTERBACKGROUND => App(AppEvent::DidEnterBackground),
+        sys::SDL_APP_WILLENTERFOREGROUND => App(AppEvent::WillEnterForeground),
+        sys::SDL_APP_DIDENTERFOREGROUND => App(AppEvent::DidEnterForeground),
+        sys::SDL_APP_TERMINATING => App(AppEvent::Terminating),
+        sys::SDL_APP_LOWMEMORY => App(AppEvent::LowMemory),
         sys::SDL_AUDIODEVICEADDED => {
             let raw = *event.adevice();
             AudioDeviceAdded {
@@ -647,6 +638,33 @@ unsafe fn wrap_event(mut event: sys::SDL_Event) -> Event {
     }
 }
 
+// Should this be clone?
+#[derive(Debug)]
+pub struct EventContext {
+    _guard: InitGuard,
+}
+
+pub trait EventContextPrivate {
+    fn new(guard: InitGuard) -> EventContext;
+}
+
+impl EventContextPrivate for EventContext {
+    fn new(guard: InitGuard) -> EventContext {
+        EventContext { _guard: guard }
+    }
+}
+
+pub struct Events<'a> {
+    context: &'a mut EventContext,
+}
+impl<'a> Iterator for Events<'a> {
+    type Item = Event;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.context.poll_event()
+    }
+}
+
 impl EventContext {
     pub fn poll_event(&mut self) -> Option<Event> {
         let mut raw: sys::SDL_Event = unsafe { mem::uninitialized() };
@@ -658,5 +676,7 @@ impl EventContext {
         }
     }
 
-    pub fn get_events() {}
+    pub fn events(&mut self) -> Events {
+        Events { context: self }
+    }
 }

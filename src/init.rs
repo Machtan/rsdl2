@@ -62,7 +62,7 @@ impl InitBuilder {
         self
     }
 
-    pub fn finish(mut self) -> Result<Context> {
+    pub fn finish(self) -> Result<Context> {
         assert_zero(unsafe { sys::SDL_Init(self.flags) })?;
         Ok(Context::new(self.flags))
     }
