@@ -1,6 +1,7 @@
 use sdl2_sys as sys;
 use common::{assert_zero, Result};
 use events::{EventContext, EventContextPrivate};
+use window::{VideoContext, VideoContextPrivate};
 use std::rc::Rc;
 
 
@@ -118,9 +119,18 @@ impl Context {
         }
     }
 
+    /// Returns an event context if SDL was initialized with event support.
     pub fn events(&self) -> Option<EventContext> {
         if self.has_events() {
             Some(EventContext::new(self.guard()))
+        } else {
+            None
+        }
+    }
+
+    pub fn video(&self) -> Option<VideoContext> {
+        if self.has_video() {
+            Some(VideoContext::new(self.guard()))
         } else {
             None
         }
