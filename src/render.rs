@@ -2,8 +2,11 @@ use sdl2_sys as sys;
 use common::*;
 use video::Window;
 use std::rc::Rc;
-use init::InitGuard;
+// use init::InitGuard;
 use rect::Rect;
+use texture::{Texture, TexturePrivate};
+use surface::Surface;
+use std::ptr;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
@@ -80,7 +83,7 @@ impl RendererBuilderPrivate for RendererBuilder {
 #[derive(Debug)]
 struct InnerRenderer {
     // Ensure that SDL isn't quit until the renderer is dropped.
-    _guard: InitGuard,
+    // _guard: InitGuard, // The window has a guard
     // Ensure that the window isn't destroyed before its renderer.
     window: Window,
     raw: *mut sys::SDL_Renderer,
@@ -105,7 +108,7 @@ pub trait RendererPrivate {
 impl RendererPrivate for Renderer {
     fn new(raw: *mut sys::SDL_Renderer, window: Window) -> Renderer {
         let inner = InnerRenderer {
-            _guard: unsafe { window.guard() }.clone(),
+            // _guard: unsafe { window.guard() }.clone(),
             window: window,
             raw: raw,
         };
@@ -128,6 +131,12 @@ impl Renderer {
         self
     }
 
+    pub fn create_texture_from_surface(&self, surface: &Surface) -> Result<Texture> {
+        let raw =
+            assert_nonnull(unsafe { sys::SDL_CreateTextureFromSurface(self.raw, surface.raw()) })?;
+        Ok(Texture::new(raw, self.clone()))
+    }
+
     pub fn clear(&self) -> Result<()> {
         assert_zero(unsafe { sys::SDL_RenderClear(self.raw) })
     }
@@ -142,7 +151,29 @@ impl Renderer {
         assert_zero(unsafe { sys::SDL_RenderDrawRect(self.raw, &raw) })
     }
 
+    pub fn copy(&self, texture: &Texture, from: Option<Rect>, to: Option<Rect>) -> Result<()> {
+        assert_zero(match (from.map(|r| r.raw()), to.map(|r| r.raw())) {
+            (Some(from), Some(to)) => unsafe {
+                sys::SDL_RenderCopy(self.raw, texture.raw(), &from, &to)
+            },
+            (Some(from), None) => unsafe {
+                sys::SDL_RenderCopy(self.raw, texture.raw(), &from, ptr::null())
+            },
+            (None, Some(to)) => unsafe {
+                sys::SDL_RenderCopy(self.raw, texture.raw(), ptr::null(), &to)
+            },
+            (None, None) => unsafe {
+                sys::SDL_RenderCopy(self.raw, texture.raw(), ptr::null(), ptr::null())
+            },
+        })
+    }
+
     pub fn present(&self) {
         unsafe { sys::SDL_RenderPresent(self.raw) }
+    }
+
+    #[inline]
+    pub unsafe fn raw(&self) -> *mut sys::SDL_Renderer {
+        self.raw
     }
 }

@@ -4,6 +4,9 @@ extern crate libc;
 mod common;
 mod init;
 mod rect;
+mod rwops;
+mod surface;
+mod texture;
 pub mod events;
 mod video;
 mod render;
@@ -14,6 +17,8 @@ pub use common::{Error, Result, get_error};
 pub use video::{VideoContext, WindowBuilder, Window};
 pub use render::{Color, Renderer};
 pub use rect::Rect;
+pub use surface::Surface;
+pub use texture::Texture;
 
 #[cfg(test)]
 mod tests {

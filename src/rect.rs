@@ -1,5 +1,5 @@
 use sdl2_sys as sys;
-use common::*;
+// use common::*;
 use libc::c_int;
 
 /// A rectangle with its origin (x, y) in its top-left corner.
@@ -20,6 +20,8 @@ impl Rect {
             h: h,
         }
     }
+
+    #[inline]
     pub fn raw(&self) -> sys::SDL_Rect {
         sys::SDL_Rect {
             x: self.x as c_int,

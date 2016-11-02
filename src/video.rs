@@ -53,6 +53,7 @@ impl Window {
         RendererBuilder::new(self.clone())
     }
 
+    #[inline]
     pub unsafe fn raw(&self) -> *mut sys::SDL_Window {
         self.raw
     }
