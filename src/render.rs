@@ -116,10 +116,15 @@ impl RendererPrivate for Renderer {
 }
 
 impl Renderer {
-    pub fn set_draw_color<C: Into<Color>>(&self, color: C) -> Result<()> {
+    pub fn set_draw_color<C: Into<Color>>(&self, color: C) {
         let c = color.into();
-        assert_zero(unsafe { sys::SDL_SetRenderDrawColor(self.raw, c.r, c.g, c.b, c.a) })?;
-        Ok(())
+        unsafe { sys::SDL_SetRenderDrawColor(self.raw, c.r, c.g, c.b, c.a) };
+    }
+
+    /// Sets the draw color and returns the renderer.
+    pub fn color<C: Into<Color>>(&self, color: C) -> &Renderer {
+        self.set_draw_color(color);
+        self
     }
 
     pub fn clear(&self) -> Result<()> {

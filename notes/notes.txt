@@ -14,4 +14,7 @@ Destroying a renderer frees the associated textures.
 The backbuffer should be considered invalidated after each present; do not assume that previous contents will exist between frames. You are strongly encouraged to call SDL_RenderClear() to initialize the backbuffer before starting each new frame's drawing, even if you plan to overwrite every pixel.
 [wiki.libsdl.org/SDL_RenderPresent]
 
+Renderers have a field 'magic' which shows whether they are still alive or not.
+This means that they aren't deallocated on destroy, but instead stays around to ensure that 'dangling' usage is still safe (though it raises SDL errors on every usage).
+
 Every window has a pointer to its renderer, and the renderer has a pointer to its window.

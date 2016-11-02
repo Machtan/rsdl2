@@ -39,7 +39,7 @@ impl Window {
         }
     }
 
-    /// Returns the renderer for this window if it has one.
+    /// Returns the renderer for this window if it has an active one.
     pub fn renderer(&self) -> Option<Renderer> {
         let raw = unsafe { sys::SDL_GetRenderer(self.raw) };
         if raw.is_null() {
