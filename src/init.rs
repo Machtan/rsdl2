@@ -102,6 +102,7 @@ impl Drop for InternalGuard {
         unsafe {
             sys::SDL_Quit();
         }
+        println!("InternalGuard dropped: => SDL Quit");
     }
 }
 

@@ -19,6 +19,7 @@ impl Drop for InnerWindow {
         unsafe {
             sys::SDL_DestroyWindow(self.raw);
         }
+        println!("Window dropped (The window's renderer should drop now).");
     }
 }
 
