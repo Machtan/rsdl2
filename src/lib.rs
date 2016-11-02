@@ -11,6 +11,8 @@ pub mod events;
 mod video;
 mod render;
 
+mod image;
+
 pub use init::{init, InitBuilder, Context};
 pub use events::EventContext;
 pub use common::{Error, Result, get_error};
@@ -19,6 +21,7 @@ pub use render::{Color, Renderer};
 pub use rect::Rect;
 pub use surface::Surface;
 pub use texture::Texture;
+pub use image::{init_sdl2_image, ImageInitBuilder, LoadImageExt};
 
 #[cfg(test)]
 mod tests {

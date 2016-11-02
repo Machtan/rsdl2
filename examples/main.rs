@@ -1,5 +1,5 @@
 extern crate sdl2;
-use sdl2::{Rect, Surface};
+use sdl2::{Rect, Surface, LoadImageExt};
 
 fn main() {
     println!("Hello World");
@@ -21,6 +21,9 @@ fn main() {
     let sloth_tex = renderer.create_texture_from_surface(&sloth_surf)
         .expect("Could not create texture");
     let sloth_pos = Rect::new(200, 100, 100, 100);
+    let coony_path = "resources/coony.png";
+    let coony_tex = renderer.load_image(coony_path).expect("Could not load coony.png");
+    let coony_pos = Rect::new(100, 200, 100, 100);
     'main: loop {
         use sdl2::events::EventKind::*;
         for event in event_context.events() {
@@ -38,7 +41,8 @@ fn main() {
         }
         renderer.color(clear_color).clear().unwrap();
         renderer.color(cornflower).fill_rect(rect).unwrap();
-        renderer.copy(&sloth_tex, None, Some(sloth_pos));
+        renderer.copy(&sloth_tex, None, Some(sloth_pos)).unwrap();
+        renderer.copy(&coony_tex, None, Some(coony_pos)).unwrap();
 
         renderer.present();
     }
