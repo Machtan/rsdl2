@@ -3,6 +3,7 @@ extern crate libc;
 
 mod common;
 mod init;
+mod rect;
 pub mod events;
 mod video;
 mod render;
@@ -12,6 +13,7 @@ pub use events::EventContext;
 pub use common::{Error, Result, get_error};
 pub use video::{VideoContext, WindowBuilder, Window};
 pub use render::{Color, Renderer};
+pub use rect::Rect;
 
 #[cfg(test)]
 mod tests {

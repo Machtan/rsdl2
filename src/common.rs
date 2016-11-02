@@ -21,11 +21,11 @@ pub fn get_error() -> Error {
     Error::new(unsafe { CStr::from_ptr(sys::SDL_GetError()).to_string_lossy().into_owned() })
 }
 
-pub fn assert_zero(result: c_int) -> Result<c_int> {
+pub fn assert_zero(result: c_int) -> Result<()> {
     if result != 0 {
         Err(get_error())
     } else {
-        Ok(result)
+        Ok(())
     }
 }
 

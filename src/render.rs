@@ -3,6 +3,7 @@ use common::*;
 use video::Window;
 use std::rc::Rc;
 use init::InitGuard;
+use rect::Rect;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
@@ -128,8 +129,17 @@ impl Renderer {
     }
 
     pub fn clear(&self) -> Result<()> {
-        assert_zero(unsafe { sys::SDL_RenderClear(self.raw) })?;
-        Ok(())
+        assert_zero(unsafe { sys::SDL_RenderClear(self.raw) })
+    }
+
+    pub fn fill_rect(&self, rect: Rect) -> Result<()> {
+        let raw = rect.raw();
+        assert_zero(unsafe { sys::SDL_RenderFillRect(self.raw, &raw) })
+    }
+
+    pub fn draw_rect(&self, rect: Rect) -> Result<()> {
+        let raw = rect.raw();
+        assert_zero(unsafe { sys::SDL_RenderDrawRect(self.raw, &raw) })
     }
 
     pub fn present(&self) {
