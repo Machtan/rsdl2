@@ -9,3 +9,7 @@ I'm not sure if this will be bad for performance, but it seems the best way
 to handle drop deallocation/deinitialization properly.
 
 Destroying a renderer frees the associated textures.
+[wiki.libsdl.org/SDL_DestroyRenderer]
+
+The backbuffer should be considered invalidated after each present; do not assume that previous contents will exist between frames. You are strongly encouraged to call SDL_RenderClear() to initialize the backbuffer before starting each new frame's drawing, even if you plan to overwrite every pixel.
+[wiki.libsdl.org/SDL_RenderPresent]

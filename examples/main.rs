@@ -11,6 +11,8 @@ fn main() {
         .center(true, true)
         .finish()
         .expect("Could not create window");
+    let renderer = window.build_renderer().unwrap().finish().expect("Could not build renderer");
+    let clear_color = (255, 200, 220);
     'main: loop {
         use sdl2::events::*;
         use sdl2::events::EventKind::*;
@@ -25,5 +27,11 @@ fn main() {
                 }
             }
         }
+        renderer.set_draw_color(clear_color);
+        renderer.clear();
+
+
+
+        renderer.present();
     }
 }
