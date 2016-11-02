@@ -4,26 +4,59 @@ use sdl2_sys as sys;
 use std::ffi::{NulError, CString};
 use std::result;
 use std::rc::Rc;
+use std::cell::RefCell;
+use render::{RendererBuilder, RendererBuilderPrivate, Renderer};
 
-pub struct Window {
-    raw: *mut sys::SDL_Window,
-    _guard: InitGuard,
+#[derive(Debug)]
+pub struct InnerWindow {
+    pub raw: *mut sys::SDL_Window,
+    pub renderer: RefCell<Option<Renderer>>,
+    pub _guard: InitGuard,
 }
 
-impl Window {
-    fn new(raw: *mut sys::SDL_Window, guard: InitGuard) -> Window {
-        Window {
-            raw: raw,
-            _guard: guard,
-        }
-    }
-}
-
-impl Drop for Window {
+impl Drop for InnerWindow {
     fn drop(&mut self) {
         unsafe {
             sys::SDL_DestroyWindow(self.raw);
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Window {
+    raw: *mut sys::SDL_Window,
+    inner: Rc<InnerWindow>,
+}
+
+impl Window {
+    fn new(raw: *mut sys::SDL_Window, guard: InitGuard) -> Window {
+        let inner = InnerWindow {
+            raw: raw,
+            renderer: RefCell::new(None),
+            _guard: guard,
+        };
+        Window {
+            raw: raw,
+            inner: Rc::new(inner),
+        }
+    }
+
+    /// Returns the renderer for this window if it has one.
+    pub fn renderer(&self) -> Option<Renderer> {
+        self.inner.renderer.borrow().clone()
+    }
+
+    /// Returns a builder for a renderer, if the window does not already have one associated.
+    pub fn build_renderer(&self) -> Option<RendererBuilder> {
+        if self.inner.renderer.borrow().is_some() {
+            None
+        } else {
+            Some(RendererBuilder::new(self.inner.clone()))
+        }
+    }
+
+    pub unsafe fn raw(&self) -> *mut sys::SDL_Window {
+        self.raw
     }
 }
 

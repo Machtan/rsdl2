@@ -1,7 +1,7 @@
 use sdl2_sys as sys;
 use common::{assert_zero, Result};
 use events::{EventContext, EventContextPrivate};
-use window::{VideoContext, VideoContextPrivate};
+use video::{VideoContext, VideoContextPrivate};
 use std::rc::Rc;
 
 

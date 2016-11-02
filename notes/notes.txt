@@ -1,0 +1,11 @@
+
+
+
+A Window can only have one renderer associated with it (Option<Renderer> ish)
+[SDL_Render.c:232]
+
+Most types should probably internally be an Rc-type with a refcell included...
+I'm not sure if this will be bad for performance, but it seems the best way
+to handle drop deallocation/deinitialization properly.
+
+Destroying a renderer frees the associated textures.
