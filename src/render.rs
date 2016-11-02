@@ -1,6 +1,6 @@
 use sdl2_sys as sys;
 use common::*;
-use video::InnerWindow;
+use video::Window;
 use std::rc::Rc;
 use init::InitGuard;
 
@@ -48,7 +48,7 @@ impl From<(u8, u8, u8, u8)> for Color {
 }
 
 pub struct RendererBuilder {
-    window: Rc<InnerWindow>,
+    window: Window,
     index: Option<i32>,
     flags: u32,
 }
@@ -56,27 +56,18 @@ pub struct RendererBuilder {
 impl RendererBuilder {
     pub fn finish(self) -> Result<Renderer> {
         let raw = assert_nonnull(unsafe {
-            sys::SDL_CreateRenderer(self.window.raw, self.index.unwrap_or(-1), self.flags)
+            sys::SDL_CreateRenderer(self.window.raw(), self.index.unwrap_or(-1), self.flags)
         })?;
-        let inner = InnerRenderer {
-            _guard: self.window._guard.clone(),
-            raw: raw,
-        };
-        let renderer = Renderer {
-            inner: Rc::new(inner),
-            raw: raw,
-        };
-        *self.window.renderer.borrow_mut() = Some(renderer.clone());
-        Ok(renderer)
+        Ok(Renderer::new(raw, self.window))
     }
 }
 
 pub trait RendererBuilderPrivate {
-    fn new(window: Rc<InnerWindow>) -> RendererBuilder;
+    fn new(window: Window) -> RendererBuilder;
 }
 
 impl RendererBuilderPrivate for RendererBuilder {
-    fn new(window: Rc<InnerWindow>) -> RendererBuilder {
+    fn new(window: Window) -> RendererBuilder {
         RendererBuilder {
             window: window,
             index: None,
@@ -87,7 +78,10 @@ impl RendererBuilderPrivate for RendererBuilder {
 
 #[derive(Debug)]
 struct InnerRenderer {
+    // Ensure that SDL isn't quit until the renderer is dropped.
     _guard: InitGuard,
+    // Ensure that the window isn't destroyed before its renderer.
+    window: Window,
     raw: *mut sys::SDL_Renderer,
 }
 
@@ -102,6 +96,23 @@ impl Drop for InnerRenderer {
 pub struct Renderer {
     inner: Rc<InnerRenderer>,
     raw: *mut sys::SDL_Renderer,
+}
+
+pub trait RendererPrivate {
+    fn new(raw: *mut sys::SDL_Renderer, window: Window) -> Renderer;
+}
+impl RendererPrivate for Renderer {
+    fn new(raw: *mut sys::SDL_Renderer, window: Window) -> Renderer {
+        let inner = InnerRenderer {
+            _guard: unsafe { window.guard() }.clone(),
+            window: window,
+            raw: raw,
+        };
+        Renderer {
+            inner: Rc::new(inner),
+            raw: raw,
+        }
+    }
 }
 
 impl Renderer {
