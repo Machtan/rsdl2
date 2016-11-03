@@ -18,3 +18,29 @@ Renderers have a field 'magic' which shows whether they are still alive or not.
 This means that they aren't deallocated on destroy, but instead stays around to ensure that 'dangling' usage is still safe (though it raises SDL errors on every usage).
 
 Every window has a pointer to its renderer, and the renderer has a pointer to its window.
+
+# SDL_image
+
+Apparently I could load a png image without initializing the library?
+
+Things supported by SDL_image:
+{ "TGA", NULL,      IMG_LoadTGA_RW },
+{ "CUR", IMG_isCUR, IMG_LoadCUR_RW },
+{ "ICO", IMG_isICO, IMG_LoadICO_RW },
+{ "BMP", IMG_isBMP, IMG_LoadBMP_RW },
+{ "GIF", IMG_isGIF, IMG_LoadGIF_RW },
+{ "JPG", IMG_isJPG, IMG_LoadJPG_RW },
+{ "LBM", IMG_isLBM, IMG_LoadLBM_RW },
+{ "PCX", IMG_isPCX, IMG_LoadPCX_RW },
+{ "PNG", IMG_isPNG, IMG_LoadPNG_RW },
+{ "PNM", IMG_isPNM, IMG_LoadPNM_RW }, /* P[BGP]M share code */
+{ "TIF", IMG_isTIF, IMG_LoadTIF_RW },
+{ "XCF", IMG_isXCF, IMG_LoadXCF_RW },
+{ "XPM", IMG_isXPM, IMG_LoadXPM_RW },
+{ "XV",  IMG_isXV,  IMG_LoadXV_RW  },
+{ "WEBP", IMG_isWEBP, IMG_LoadWEBP_RW },
+
+The PNG loading routine only needs to be deinited if it is loaded dynamically
+(Nothing happens if it wasn't).
+
+IMG_LoadTexture -> image = supported[i].load(src) -> IMG_LoadPNG_RW

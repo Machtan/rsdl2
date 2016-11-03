@@ -3,15 +3,7 @@ use common::{assert_zero, Result};
 use events::{EventContext, EventContextPrivate};
 use video::{VideoContext, VideoContextPrivate};
 use std::rc::Rc;
-
-
-// #define SDL_INIT_TIMER          0x00000001
-// #define SDL_INIT_AUDIO          0x00000010
-// #define SDL_INIT_VIDEO          0x00000020  /**< SDL_INIT_VIDEO implies SDL_INIT_EVENTS */
-// #define SDL_INIT_JOYSTICK       0x00000200  /**< SDL_INIT_JOYSTICK implies SDL_INIT_EVENTS */
-// #define SDL_INIT_HAPTIC         0x00001000
-// #define SDL_INIT_GAMECONTROLLER 0x00002000  /**< SDL_INIT_GAMECONTROLLER implies SDL_INIT_JOYSTICK */
-// #define SDL_INIT_EVENTS         0x00004000
+use image;
 
 #[derive(Debug)]
 pub struct InitBuilder {
@@ -89,17 +81,24 @@ impl InitGuard {
 #[derive(Debug)]
 struct InternalGuard {
     _priv: (),
+    drop_image: bool,
 }
 
 impl InternalGuard {
     pub unsafe fn new() -> InternalGuard {
-        InternalGuard { _priv: () }
+        InternalGuard {
+            _priv: (),
+            drop_image: true,
+        }
     }
 }
 
 impl Drop for InternalGuard {
     fn drop(&mut self) {
         unsafe {
+            if self.drop_image {
+                image::quit();
+            }
             sys::SDL_Quit();
         }
         println!("InternalGuard dropped: => SDL Quit");

@@ -21,7 +21,7 @@ pub use render::{Color, Renderer};
 pub use rect::Rect;
 pub use surface::Surface;
 pub use texture::Texture;
-pub use image::{init_sdl2_image, ImageInitBuilder, LoadImageExt};
+pub use image::{preload_image_support, ImageInitBuilder, LoadImageExt};
 
 #[cfg(test)]
 mod tests {

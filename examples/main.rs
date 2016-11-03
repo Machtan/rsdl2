@@ -13,6 +13,7 @@ fn main() {
         .finish()
         .expect("Could not create window");
     let renderer = window.build_renderer().finish().expect("Could not build renderer");
+    // This is where I should've initialized SDL_image
     let clear_color = (255, 200, 220);
     let cornflower = (154, 206, 235);
     let rect = Rect::new(100, 100, 100, 100);
