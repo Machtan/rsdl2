@@ -3,7 +3,6 @@ use common::{assert_zero, Result};
 use events::{EventContext, EventContextPrivate};
 use video::{VideoContext, VideoContextPrivate};
 use std::rc::Rc;
-use image;
 
 #[derive(Debug)]
 pub struct InitBuilder {
@@ -81,24 +80,17 @@ impl InitGuard {
 #[derive(Debug)]
 struct InternalGuard {
     _priv: (),
-    drop_image: bool,
 }
 
 impl InternalGuard {
     pub unsafe fn new() -> InternalGuard {
-        InternalGuard {
-            _priv: (),
-            drop_image: true,
-        }
+        InternalGuard { _priv: () }
     }
 }
 
 impl Drop for InternalGuard {
     fn drop(&mut self) {
         unsafe {
-            if self.drop_image {
-                image::quit();
-            }
             sys::SDL_Quit();
         }
         println!("InternalGuard dropped: => SDL Quit");

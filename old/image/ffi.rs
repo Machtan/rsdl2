@@ -18,6 +18,8 @@ pub const IMG_INIT_WEBP: IMG_InitFlags = 0x00000008;
 //
 #[link(name = "SDL2_image")]
 extern "C" {
+    pub fn IMG_Linked_Version() -> *const sys::SDL_version;
+
     pub fn IMG_Init(flags: c_int) -> c_int;
 
     // Unloads libraries loaded with IMG_Init

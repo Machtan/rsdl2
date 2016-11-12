@@ -1,7 +1,7 @@
 extern crate sdl2_sys;
 extern crate libc;
 
-mod common;
+pub mod common;
 mod init;
 mod rect;
 mod rwops;
@@ -11,8 +11,6 @@ pub mod events;
 mod video;
 mod render;
 
-mod image;
-
 pub use init::{init, InitBuilder, Context};
 pub use events::EventContext;
 pub use common::{Error, Result, get_error};
@@ -21,7 +19,6 @@ pub use render::{Color, Renderer};
 pub use rect::Rect;
 pub use surface::Surface;
 pub use texture::Texture;
-pub use image::{preload_image_support, ImageInitBuilder, LoadImageExt};
 
 #[cfg(test)]
 mod tests {

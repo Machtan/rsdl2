@@ -1,6 +1,6 @@
 [package]
 authors = ["Machtan <jako3047@gmail.com>"]
-name = "sdl2"
+name = "rsdl2"
 version = "0.1.0"
 
 [dependencies]
