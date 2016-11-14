@@ -1,9 +1,10 @@
-extern crate sdl2;
-use sdl2::{Rect, Surface};
+extern crate rsdl2;
+use rsdl2::{Rect, Surface};
+
 
 fn main() {
     println!("Hello World");
-    let context = sdl2::init().everything().finish().expect("init failed");
+    let context = rsdl2::init().everything().finish().expect("init failed");
     let mut event_context = context.events().expect("Event subsystem not initialized");
     let video_context = context.video().expect("Video subsystem not initialized");
     let window = video_context.build_window()
@@ -26,7 +27,7 @@ fn main() {
     //let coony_tex = renderer.load_image(coony_path).expect("Could not load coony.png");
     //let coony_pos = Rect::new(100, 200, 100, 100);
     'main: loop {
-        use sdl2::events::EventKind::*;
+        use rsdl2::events::EventKind::*;
         for event in event_context.events() {
             match event.kind {
                 Quit => {
