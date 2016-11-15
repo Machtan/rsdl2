@@ -1,4 +1,4 @@
-extern crate sdl2_sys;
+pub extern crate sdl2_sys;
 extern crate libc;
 
 pub mod common;
