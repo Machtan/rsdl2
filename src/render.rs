@@ -7,6 +7,38 @@ use rect::Rect;
 use texture::{Texture, TexturePrivate};
 use surface::Surface;
 use std::ptr;
+use libc::{c_int};
+
+#[derive(Debug, Clone, Copy)]
+pub enum BlendMode {
+    /// No blending
+    /// dstRGBA = srcRGBA
+    None, 
+    /// Alpha blending
+    /// dstRGB = (srcRGB * srcA) + (dstRGB * (1-srcA))
+    /// dstA = srcA + (dstA * (1-srcA))
+    Blend, 
+    /// Additive blending
+    /// dstRGB = (srcRGB * srcA) + dstRGB
+    /// dstA = dstA
+    Add,
+    /// color modulate
+    /// dstRGB = srcRGB * dstRGB
+    /// dstA = dstA
+    Mod,
+}
+
+impl BlendMode {
+    pub fn raw(&self) -> c_int {
+        use self::BlendMode::*;
+        match *self {
+            None => sys::SDL_BLENDMODE_NONE,
+            Blend => sys::SDL_BLENDMODE_BLEND,
+            Add => sys::SDL_BLENDMODE_ADD,
+            Mod => sys::SDL_BLENDMODE_MOD,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
@@ -166,6 +198,10 @@ impl Renderer {
                 sys::SDL_RenderCopy(self.raw, texture.raw(), ptr::null(), ptr::null())
             },
         })
+    }
+
+    pub fn set_blend_mode(&self, mode: BlendMode) {
+        unsafe { sys::SDL_SetRenderDrawBlendMode(self.raw, mode.raw()); }
     }
 
     pub fn present(&self) {

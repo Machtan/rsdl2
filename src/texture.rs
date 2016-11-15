@@ -48,7 +48,7 @@ impl Texture {
         let mut w: c_int = 0;
         let mut h: c_int = 0;
         unsafe {
-            sys::SDL_QueryTexture(self.raw(), &mut _fmt, &mut _acc, &mut w, &mut h);
+            sys::SDL_QueryTexture(self.raw, &mut _fmt, &mut _acc, &mut w, &mut h);
         }
         (w as i32, h as i32)
     }
