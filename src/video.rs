@@ -5,6 +5,7 @@ use std::ffi::{NulError, CString};
 use std::result;
 use std::rc::Rc;
 use render::{RendererBuilder, RendererBuilderPrivate, Renderer, RendererPrivate};
+use libc::c_int;
 
 #[derive(Debug)]
 pub struct InnerWindow {
@@ -49,8 +50,17 @@ impl Window {
         }
     }
 
+    // Starts specifying the creation of a renderer for this window
     pub fn build_renderer(&self) -> RendererBuilder {
         RendererBuilder::new(self.clone())
+    }
+
+    // Returns the size of this window
+    pub fn size(&self) -> (i32, i32) {
+        let mut w: c_int = 0;
+        let mut h: c_int = 0;
+        unsafe { sys::SDL_GetWindowSize(self.raw, &mut w, &mut h) };
+        (w as i32, h as i32)
     }
 
     #[inline]

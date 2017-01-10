@@ -2,11 +2,14 @@ pub extern crate sdl2_sys;
 extern crate libc;
 
 pub mod common;
+#[macro_use]
+mod macros;
 mod init;
 mod rect;
 mod rwops;
 mod surface;
 mod texture;
+pub mod keyboard;
 pub mod events;
 mod video;
 mod render;
@@ -19,6 +22,7 @@ pub use render::{Color, Renderer, BlendMode};
 pub use rect::Rect;
 pub use surface::Surface;
 pub use texture::Texture;
+pub use keyboard::{Keycode, Scancode};
 
 #[cfg(test)]
 mod tests {

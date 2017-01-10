@@ -36,6 +36,9 @@ fn main() {
                 }
                 FingerMotion { .. } |
                 MouseMotion(_) => {}
+                KeyDown(sym) => {
+                    println!("Key: {:?}", sym.keycode);
+                }
                 event => {
                     println!("Event: {:?}", event);
                 }

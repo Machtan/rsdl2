@@ -3,6 +3,7 @@ use std::mem;
 use libc::c_void;
 use init::InitGuard;
 use std::ffi::CStr;
+use keyboard::{Keycode, Scancode};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AppEvent {
@@ -162,28 +163,6 @@ pub struct MultiGestureEvent {
 // } SDL_Keysym;
 //
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Scancode {
-    Whatever,
-}
-
-impl Scancode {
-    pub fn from_raw(_button: sys::SDL_Scancode) -> Option<Scancode> {
-        Some(Scancode::Whatever)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Keycode {
-    Whatever,
-}
-
-impl Keycode {
-    pub fn from_raw(_button: sys::SDL_Keycode) -> Option<Keycode> {
-        Some(Keycode::Whatever)
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct Keysym {
     pub scancode: Scancode,
@@ -194,8 +173,8 @@ pub struct Keysym {
 impl Keysym {
     fn from_raw(raw: sys::SDL_Keysym) -> Keysym {
         Keysym {
-            scancode: Scancode::from_raw(raw.scancode).expect("Invalid scancode"),
-            keycode: Keycode::from_raw(raw.sym).expect("Invalid keycode"),
+            scancode: Scancode::from_value(raw.scancode).expect("Invalid scancode"),
+            keycode: Keycode::from_value(raw.sym).expect("Invalid keycode"),
             modifiers: raw._mod,
         }
     }
