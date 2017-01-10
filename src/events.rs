@@ -4,6 +4,7 @@ use libc::c_void;
 use init::InitGuard;
 use std::ffi::CStr;
 use keyboard::{Keycode, Scancode};
+use keymod::Keymod;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AppEvent {
@@ -167,7 +168,7 @@ pub struct MultiGestureEvent {
 pub struct Keysym {
     pub scancode: Scancode,
     pub keycode: Keycode,
-    pub modifiers: u16,
+    pub mods: Keymod,
 }
 
 impl Keysym {
@@ -175,8 +176,12 @@ impl Keysym {
         Keysym {
             scancode: Scancode::from_value(raw.scancode).expect("Invalid scancode"),
             keycode: Keycode::from_value(raw.sym).expect("Invalid keycode"),
-            modifiers: raw._mod,
+            mods: Keymod::from_bits(raw._mod).expect("Invalid modifiers"),
         }
+    }
+    
+    pub fn is_combination(&self, mods: Keymod, key: Keycode) -> bool {
+        self.keycode == key && self.mods == mods
     }
 }
 
