@@ -9,7 +9,6 @@ fn main() {
     let video_context = context.video().expect("Video subsystem not initialized");
     let window = video_context.build_window()
         .title("SDL Game")
-        .unwrap()
         .center(true, true)
         .finish()
         .expect("Could not create window");
