@@ -5,6 +5,7 @@ use init::InitGuard;
 use std::ffi::CStr;
 use keyboard::{Keycode, Scancode};
 use keymod::Keymod;
+use common::{Error, get_error};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AppEvent {
@@ -653,6 +654,16 @@ impl EventContext {
             Some(unsafe { wrap_event(raw) })
         } else {
             None
+        }
+    }
+    
+    pub fn wait_event(&mut self) -> Result<Event, Error> {
+        let mut raw: sys::SDL_Event = unsafe { mem::uninitialized() };
+        let res = unsafe { sys::SDL_WaitEvent(&mut raw) };
+        if res != 0 {
+            Ok(unsafe { wrap_event(raw) })
+        } else {
+            Err(get_error())
         }
     }
 
