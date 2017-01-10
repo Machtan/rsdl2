@@ -1,8 +1,7 @@
 use common::*;
 use init::InitGuard;
 use sdl2_sys as sys;
-use std::ffi::{NulError, CString};
-use std::result;
+use std::ffi::CString;
 use std::rc::Rc;
 use render::{RendererBuilder, RendererBuilderPrivate, Renderer, RendererPrivate};
 use libc::c_int;
@@ -62,6 +61,17 @@ impl Window {
         unsafe { sys::SDL_GetWindowSize(self.raw, &mut w, &mut h) };
         (w as i32, h as i32)
     }
+    
+    pub fn set_title(&self, title: &str) {
+        let cstr = match CString::new(title) {
+            Ok(cstr) => cstr,
+            Err(nulerr) => {
+                CString::new(&title[.. nulerr.nul_position()]).unwrap()
+            }
+        };
+        // SDL Copies the title over, so don't worry about drop.
+        unsafe { sys::SDL_SetWindowTitle(self.raw, cstr.into_raw()) };
+    }
 
     #[inline]
     pub unsafe fn raw(&self) -> *mut sys::SDL_Window {
@@ -115,9 +125,14 @@ impl WindowBuilder {
         }
     }
 
-    pub fn title(mut self, title: &str) -> result::Result<Self, NulError> {
-        self.title = CString::new(title)?;
-        Ok(self)
+    pub fn title(mut self, title: &str) -> Self {
+        self.title = match CString::new(title) {
+            Ok(cstr) => cstr,
+            Err(nulerr) => {
+                CString::new(&title[.. nulerr.nul_position()]).unwrap()
+            }
+        };
+        self
     }
 
     pub fn position(mut self, x: i32, y: i32) -> Self {

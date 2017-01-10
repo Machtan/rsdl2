@@ -17,6 +17,10 @@ bitflags! {
 }
 
 impl Keymod {
+    pub fn new() -> Keymod {
+        Keymod::empty()
+    }
+    
     #[inline]
     pub fn shift(self) -> Keymod {
         self | LSHIFT | RSHIFT
