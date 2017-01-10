@@ -18,7 +18,7 @@ mod video;
 mod render;
 
 pub use init::{init, InitBuilder, Context};
-pub use events::EventContext;
+pub use events::{EventContext, Keysym};
 pub use common::{Error, Result, get_error};
 pub use video::{VideoContext, WindowBuilder, Window};
 pub use render::{Color, Renderer, BlendMode};

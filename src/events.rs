@@ -179,10 +179,6 @@ impl Keysym {
             mods: Keymod::from_bits(raw._mod).expect("Invalid modifiers"),
         }
     }
-    
-    pub fn is_combination(&self, mods: Keymod, key: Keycode) -> bool {
-        self.keycode == key && self.mods == mods
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
