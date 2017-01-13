@@ -12,7 +12,7 @@ struct InnerRWops<'a> {
 impl<'a> Drop for InnerRWops<'a> {
     fn drop(&mut self) {
         unsafe { ((*self.raw).close)(self.raw) };
-        println!("RWops dropped.");
+        //println!("RWops dropped.");
     }
 }
 

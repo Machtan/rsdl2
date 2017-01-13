@@ -124,7 +124,7 @@ struct InnerRenderer {
 impl Drop for InnerRenderer {
     fn drop(&mut self) {
         unsafe { sys::SDL_DestroyRenderer(self.raw) };
-        println!("Renderer dropped.");
+        //println!("Renderer dropped.");
     }
 }
 

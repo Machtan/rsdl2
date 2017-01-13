@@ -13,7 +13,7 @@ pub struct InnerSurface {
 impl Drop for InnerSurface {
     fn drop(&mut self) {
         unsafe { sys::SDL_FreeSurface(self.raw) };
-        println!("Surface dropped.");
+        //println!("Surface dropped.");
     }
 }
 

@@ -15,7 +15,7 @@ pub struct InnerTexture {
 impl Drop for InnerTexture {
     fn drop(&mut self) {
         unsafe { sys::SDL_DestroyTexture(self.raw) };
-        println!("Texture dropped.");
+        //println!("Texture dropped.");
     }
 }
 
